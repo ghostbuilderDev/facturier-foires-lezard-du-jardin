@@ -1,0 +1,26 @@
+FACTURIER FOIRES — LEZARD DU JARDIN v1.0
+
+1) Dans Termux :
+termux-setup-storage
+pkg update -y
+pkg install -y nodejs-lts unzip git
+
+2) Décompresser :
+cd ~/storage/downloads
+unzip -o facturier-foires-lezard-du-jardin-v1.0.zip -d ~/facturier-ldj
+cd ~/facturier-ldj/facturier-foires-lezard-du-jardin
+
+3) Installer :
+npm install
+cp .env.example .env
+nano .env
+
+4) Mettre les 2 valeurs Supabase dans .env.
+
+5) Lancer :
+npm run dev -- --host 0.0.0.0
+
+6) Ouvrir l'adresse affichée par Vite.
+
+SQL première installation : supabase/migrations/001_init.sql
+Upgrade depuis v0.1 : supabase/migrations/002_upgrade_v1.sql
