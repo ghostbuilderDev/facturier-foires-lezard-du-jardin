@@ -1,35 +1,61 @@
-name: Deploy GitHub Pages
+name: Deploy Facturier LDJ
+
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: github-pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npm run build
+          cache: npm
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Facturier LDJ
+        run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_PUBLIC_APP_URL: ${{ secrets.VITE_PUBLIC_APP_URL }}
-      - uses: actions/upload-pages-artifact@v3
+          VITE_PUBLIC_APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: dist
+          path: ./dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
