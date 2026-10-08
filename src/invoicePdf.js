@@ -9,7 +9,7 @@ export function createInvoicePdf({ invoice, company, lines }) {
   let y = 17
   const addText = (txt, x, yy, opts={}) => doc.text(String(txt ?? ''), x, yy, opts)
 
-  doc.setFillColor(36, 75, 58); doc.roundedRect(15, 12, 53, 18, 4, 4, 'F')
+  doc.setFillColor(36, 75, 58); doc.roundedRect(15, 12, 58, 18, 4, 4, 'F')
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12)
   addText(company.trade_name || company.name || 'Lézard du Jardin', 18, 23)
   doc.setTextColor(32,49,40)
@@ -19,16 +19,36 @@ export function createInvoicePdf({ invoice, company, lines }) {
 
   doc.setFont('helvetica','bold'); doc.setFontSize(10); addText('ÉMETTEUR', left, y)
   doc.setFont('helvetica','normal'); y += 6
-  const seller = [company.legal_name || company.name, company.address, `${company.postal_code || ''} ${company.city || ''}`.trim(), company.country || 'France', company.siret ? `SIRET : ${company.siret}` : '', company.vat_number ? `TVA : ${company.vat_number}` : '', company.email || ''].filter(Boolean)
-  seller.forEach(t => { addText(t,left,y); y += 5 })
+  const seller = [
+    company.legal_name || company.name || 'LEZARD DU JARDIN',
+    company.address,
+    `${company.postal_code || ''} ${company.city || ''}`.trim(),
+    company.country || 'France',
+    company.siren ? `SIREN : ${company.siren}` : '',
+    company.siret ? `SIRET : ${company.siret}` : '',
+    company.siren ? `RCS Saintes : ${company.siren}` : '',
+    company.vat_number ? `TVA intracom. : ${company.vat_number}` : '',
+    company.email || '',
+    company.phone || ''
+  ].filter(Boolean)
+  seller.forEach(t => { addText(t,left,y); y += 4.7 })
 
   const c = invoice.customer_json || {}
   let cy = 40
   doc.setFont('helvetica','bold'); addText('CLIENT', 112, cy); doc.setFont('helvetica','normal'); cy += 6
   const name = c.customer_type === 'company' ? (c.company_name || `${c.first_name||''} ${c.last_name||''}`.trim()) : `${c.first_name||''} ${c.last_name||''}`.trim()
-  const cust = [name, c.siren ? `SIREN : ${c.siren}` : '', c.address, `${c.postal_code||''} ${c.city||''}`.trim(), c.country || 'France', c.email || '', c.phone || ''].filter(Boolean)
-  cust.forEach(t => { addText(t,112,cy); cy += 5 })
-  y = Math.max(y, cy) + 7
+  const cust = [
+    name,
+    c.customer_type === 'company' && c.siren ? `SIREN : ${c.siren}` : '',
+    c.customer_type === 'company' && c.vat_number ? `TVA intracom. : ${c.vat_number}` : '',
+    c.address,
+    `${c.postal_code||''} ${c.city||''}`.trim(),
+    c.country || 'France',
+    c.email || '',
+    c.phone || ''
+  ].filter(Boolean)
+  cust.forEach(t => { addText(t,112,cy); cy += 4.7 })
+  y = Math.max(y, cy) + 6
 
   doc.setDrawColor(222,216,202); doc.line(left,y,right,y); y+=7
   doc.setFontSize(9)
@@ -40,8 +60,8 @@ export function createInvoicePdf({ invoice, company, lines }) {
   y += 9
 
   const columns = [
-    {x:16,w:74,label:'Désignation'}, {x:91,w:16,label:'Qté'}, {x:108,w:25,label:'PU TTC'},
-    {x:134,w:18,label:'TVA'}, {x:153,w:18,label:'Remise'}, {x:172,w:22,label:'Total TTC'}
+    {x:16,w:72,label:'Désignation'}, {x:89,w:14,label:'Qté'}, {x:105,w:26,label:'PU HT'},
+    {x:133,w:18,label:'TVA'}, {x:153,w:18,label:'Remise'}, {x:173,w:21,label:'Total TTC'}
   ]
   const header = () => {
     doc.setFillColor(238,243,239); doc.rect(15,y-5,180,8,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(8)
@@ -49,23 +69,25 @@ export function createInvoicePdf({ invoice, company, lines }) {
     doc.setFont('helvetica','normal'); y += 6
   }
   header()
-  lines.forEach((l, idx) => {
-    if (y > 257) { doc.addPage(); y=20; header() }
-    const qty = Number(l.quantity||0), price = Number(l.unit_price_ttc||0), disc = Number(l.discount_percent||0)
-    const total = qty*price*(1-disc/100)
-    const desc = doc.splitTextToSize(l.description || '', 72)
+  lines.forEach(l => {
+    if (y > 252) { doc.addPage(); y=20; header() }
+    const qty = Number(l.quantity||0), priceTtc = Number(l.unit_price_ttc||0), disc = Number(l.discount_percent||0), vat = Number(l.vat_rate||0)
+    const unitHt = vat === -100 ? priceTtc : priceTtc/(1+vat/100)
+    const totalTtc = qty*priceTtc*(1-disc/100)
+    const descText = `${l.sku ? l.sku+' — ' : ''}${l.description || ''}`
+    const desc = doc.splitTextToSize(descText, 70)
     const h = Math.max(7, desc.length*4.2)
     addText(desc,16,y)
-    addText(qty.toString().replace('.',','), 98,y,{align:'right'})
-    addText(euro(price),131,y,{align:'right'})
-    addText(`${Number(l.vat_rate||0).toFixed(1).replace('.0','')} %`,150,y,{align:'right'})
-    addText(`${disc.toFixed(0)} %`,169,y,{align:'right'})
-    addText(euro(total),194,y,{align:'right'})
+    addText(qty.toString().replace('.',','), 101,y,{align:'right'})
+    addText(euro(unitHt),130,y,{align:'right'})
+    addText(`${vat.toFixed(1).replace('.0','')} %`,150,y,{align:'right'})
+    addText(`${disc.toFixed(0)} %`,170,y,{align:'right'})
+    addText(euro(totalTtc),194,y,{align:'right'})
     y += h
     doc.setDrawColor(240,236,228); doc.line(15,y-2,195,y-2)
   })
   y += 5
-  if (y > 235) { doc.addPage(); y=25 }
+  if (y > 220) { doc.addPage(); y=25 }
   const tx=130
   doc.setFontSize(10); doc.setFont('helvetica','normal')
   addText('Total HT',tx,y); addText(euro(invoice.total_ht),right,y,{align:'right'}); y+=6
@@ -74,10 +96,16 @@ export function createInvoicePdf({ invoice, company, lines }) {
 
   doc.setFontSize(8); doc.setFont('helvetica','normal')
   if(invoice.delivery_mode) { addText(`Remise / livraison : ${invoice.delivery_mode}`,left,y); y+=5 }
-  if(c.delivery_same === false && c.delivery_address) { addText(`Adresse de livraison : ${c.delivery_address}, ${c.delivery_postal_code||''} ${c.delivery_city||''}`,left,y); y+=5 }
+  if(c.delivery_same === false && c.delivery_address) { const dl=doc.splitTextToSize(`Adresse de livraison : ${c.delivery_address}, ${c.delivery_postal_code||''} ${c.delivery_city||''}`,175); addText(dl,left,y); y+=dl.length*4+1 }
   if(invoice.notes) { const nt=doc.splitTextToSize(`Note : ${invoice.notes}`,175); addText(nt,left,y); y += nt.length*4+2 }
+
+  const payment = company.payment_terms || 'Paiement comptant à la vente. Aucun escompte pour paiement anticipé.'
+  const pt=doc.splitTextToSize(`Conditions de paiement : ${payment}`,175); addText(pt,left,y); y+=pt.length*4+2
+  if(c.customer_type === 'company'){
+    const pro=doc.splitTextToSize('Clients professionnels : pénalités de retard exigibles dès le lendemain de l’échéance au taux BCE de refinancement le plus récent majoré de 10 points. Indemnité forfaitaire pour frais de recouvrement : 40 €.',175)
+    addText(pro,left,y); y+=pro.length*4+2
+  }
   if(company.legal_footer){ const ft=doc.splitTextToSize(company.legal_footer,175); addText(ft,left,y); y+=ft.length*4+2 }
-  if(company.payment_terms) { const pt=doc.splitTextToSize(company.payment_terms,175); addText(pt,left,y); y+=pt.length*4+2 }
   doc.setTextColor(109,117,111)
   addText(`Document généré par Facturier Foires Lézard du Jardin • Empreinte : ${(invoice.integrity_hash||'').slice(0,24)}`, left, 289)
   return doc.output('blob')

@@ -1,0 +1,26 @@
+MISE A JOUR v1.4 - LEZARD DU JARDIN
+
+OBJECTIF PRINCIPAL
+La vente de foire n'oblige plus à faire une facture.
+
+VENTE RAPIDE (mode par défaut)
+- Scanner un ou plusieurs QR produits.
+- Ajuster quantité, prix ou remise si besoin.
+- Choisir le règlement.
+- Appuyer sur « Enregistrer la vente ».
+- La vente est ajoutée au suivi Journée avec date, heure, produits, quantités, prix et règlement.
+- Aucun client, PDF ou e-mail n'est demandé.
+
+FACTURE A LA DEMANDE
+- Le bouton « Le client veut une facture » conserve le panier et ouvre le mode facture.
+- Le client peut avoir rempli à l'avance le QR permanent de l'affiche.
+- « Clients en attente » permet de choisir le bon client.
+- La facture, le PDF et l'e-mail sont générés uniquement dans ce cas.
+
+SUIVI JOURNEE
+- Additionne ventes rapides + factures demandées sans double comptage.
+- Total ventes, articles, CA TTC, panier moyen, règlements et détail chronologique.
+- Export CSV.
+
+SUPABASE
+Exécuter uniquement 005_ldj_v1_4.sql si 004 n'a pas encore été lancé. La 005 est cumulative.

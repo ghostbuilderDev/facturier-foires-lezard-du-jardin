@@ -1,5 +1,6 @@
 -- Facturier Foires Lézard du Jardin — schéma initial
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
@@ -119,7 +120,7 @@ create table if not exists public.audit_events (
 );
 
 create or replace function public.finalize_invoice(p_invoice_id uuid)
-returns text language plpgsql security definer set search_path=public as $$
+returns text language plpgsql security definer set search_path=public,extensions as $$
 declare inv public.invoices; comp public.companies; seq bigint; yr int; n text; tht numeric; tva numeric; ttc numeric; line_json text;
 begin
   select * into inv from public.invoices where id=p_invoice_id for update;

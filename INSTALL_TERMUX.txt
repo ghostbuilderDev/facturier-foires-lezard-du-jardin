@@ -1,26 +1,24 @@
-FACTURIER FOIRES — LEZARD DU JARDIN v1.0
+FACTURIER FOIRES - LEZARD DU JARDIN v1.4
 
-1) Dans Termux :
+MISE A JOUR D'UNE INSTALLATION EXISTANTE
+1) Télécharger facturier-foires-lezard-du-jardin-v1.4.zip dans Download.
+2) Dans Termux :
+cd ~/storage/downloads && rm -rf facturier-ldj-v1.4 && mkdir facturier-ldj-v1.4 && unzip -o facturier-foires-lezard-du-jardin-v1.4.zip -d facturier-ldj-v1.4 && bash facturier-ldj-v1.4/update_termux.sh
+3) Ouvrir Supabase > SQL Editor et exécuter une seule fois :
+supabase/migrations/005_ldj_v1_4.sql
+
+La migration 005 est cumulative : si tu n'as pas installé la v1.3, ne lance pas 004 avant.
+
+PREMIERE INSTALLATION
 termux-setup-storage
 pkg update -y
 pkg install -y nodejs-lts unzip git
-
-2) Décompresser :
 cd ~/storage/downloads
-unzip -o facturier-foires-lezard-du-jardin-v1.0.zip -d ~/facturier-ldj
-cd ~/facturier-ldj/facturier-foires-lezard-du-jardin
-
-3) Installer :
+unzip -o facturier-foires-lezard-du-jardin-v1.4.zip -d ~/facturier-ldj-v1.4
+cd ~/facturier-ldj-v1.4
 npm install
 cp .env.example .env
 nano .env
-
-4) Mettre les 2 valeurs Supabase dans .env.
-
-5) Lancer :
 npm run dev -- --host 0.0.0.0
 
-6) Ouvrir l'adresse affichée par Vite.
-
-SQL première installation : supabase/migrations/001_init.sql
-Upgrade depuis v0.1 : supabase/migrations/002_upgrade_v1.sql
+SQL : exécuter 001_init.sql, puis 005_ldj_v1_4.sql.

@@ -6,6 +6,6 @@
   "display": "standalone",
   "background_color": "#f7f3e9",
   "theme_color": "#244b3a",
-  "description": "Facturier terrain Lézard du Jardin : QR produits, QR client, PDF et e-mail",
+  "description": "Ventes foire Lézard du Jardin : ventes rapides, suivi journée, QR produits et factures à la demande",
   "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }

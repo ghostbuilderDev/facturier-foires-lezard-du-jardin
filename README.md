@@ -1,203 +1,85 @@
-# Facturier Foires — Lézard du Jardin v1.0
+# Facturier Foires — Lézard du Jardin v1.4
 
-Application PWA de facturation terrain pour les foires et salons.
+Application PWA terrain pour les foires et salons, avec catalogue **389 produits** et QR `LDJ:P:<id_product>`.
 
-Cette version intègre directement le catalogue **389 produits Lézard du Jardin** issu du catalogue de repérage et associe chaque produit au QR `LDJ:P:<id_product>` des étiquettes foire.
+## Principe v1.4
 
-## Ce qui est prêt
+La vente courante est désormais une **vente rapide**, pas une facture systématique.
 
-- Catalogue intégré : **389 produits**, référence, nom, catégorie, prix TTC, QR produit.
-- **387 miniatures** intégrées ; 2 références sans image exploitable affichent un placeholder LDJ.
-- Scanner QR produit avec la caméra du téléphone (Chrome/Android via `BarcodeDetector`).
-- Un second scan du même produit augmente automatiquement la quantité.
-- Recherche ultra-rapide par nom, référence, catégorie, n° catalogue ou ID.
-- Catalogue local utilisable avec réseau faible / hors connexion après chargement de la PWA.
-- Brouillon de vente persistant en local.
-- QR client temporaire : le client saisit lui-même identité, adresse, e-mail, téléphone et adresse de livraison.
-- Gestion des foires ; la foire sélectionnée reste mémorisée pour les ventes suivantes.
-- Paiements : CB, espèces, chèque, virement, PayPal, plusieurs fois, autre.
-- Remise par ligne, TVA, livraison / emporté / retrait.
-- Numérotation chronologique atomique côté Supabase.
-- PDF facture, stockage privé, empreinte SHA-256 et journal d'audit.
-- Envoi automatique de la facture au client + copie entreprise via Resend.
-- Historique, CA du jour et panier moyen.
-- Partage du PDF depuis Android lorsque le navigateur le permet.
-- PWA installable sur Android / iPhone / PC.
+### Vente rapide
+1. Scanner les QR produits ou rechercher un article.
+2. Ajuster quantité, prix/remise si nécessaire.
+3. Choisir le règlement.
+4. Appuyer sur **Enregistrer la vente**.
 
-## Important : facturier, pas logiciel de caisse
+La vente est enregistrée avec date, heure, foire, règlement, articles, quantités, prix HT/TVA/TTC. **Aucun client, PDF ou e-mail n'est demandé.**
 
-Le projet est conçu comme **facturier de vente**. Il ne gère pas de fond de caisse, tiroir-caisse, clôture Z ou comptage d'espèces. Si son périmètre évolue vers un logiciel de caisse, la conformité correspondante doit être traitée séparément.
+### Facture uniquement à la demande
+Si le client veut une facture, utiliser **Le client veut une facture**. Le panier reste intact et le mode facture permet :
+- QR client temporaire ;
+- QR permanent sur affiche ;
+- file **Clients en attente** ;
+- génération PDF ;
+- archivage Supabase ;
+- envoi e-mail via Resend.
 
----
+### QR permanent
+Plusieurs clients peuvent remplir leurs coordonnées en même temps. Chaque scan crée une session indépendante. Le vendeur choisit ensuite le bon client dans **Clients en attente**.
 
-## Installation rapide avec Termux
+### Suivi journée
+L'onglet **Journée** additionne :
+- ventes rapides ;
+- factures demandées ;
+- nombre d'articles ;
+- CA HT / TVA / TTC ;
+- panier moyen ;
+- répartition des règlements ;
+- détail chronologique heure / produit / quantité / prix ;
+- export CSV.
 
-Place le ZIP dans `Download`, puis :
+Une facture réalisée à la demande n'est pas enregistrée en plus comme vente rapide : il n'y a donc pas de double comptage.
 
-```bash
-termux-setup-storage
-pkg update -y
-pkg install -y nodejs-lts unzip git
+## Mise à jour depuis la version actuelle
 
-cd ~/storage/downloads
-unzip -o facturier-foires-lezard-du-jardin-v1.0.zip -d ~/facturier-ldj
-cd ~/facturier-ldj/facturier-foires-lezard-du-jardin
-
-npm install
-cp .env.example .env
-nano .env
-```
-
-Renseigne :
-
-```env
-VITE_SUPABASE_URL=https://VOTRE-PROJET.supabase.co
-VITE_SUPABASE_ANON_KEY=VOTRE_CLE_ANON
-```
-
-Puis :
+Télécharger `facturier-foires-lezard-du-jardin-v1.4.zip` dans Android/Download puis exécuter :
 
 ```bash
-npm run dev -- --host 0.0.0.0
+cd ~/storage/downloads && rm -rf facturier-ldj-v1.4 && mkdir facturier-ldj-v1.4 && unzip -o facturier-foires-lezard-du-jardin-v1.4.zip -d facturier-ldj-v1.4 && bash facturier-ldj-v1.4/update_termux.sh
 ```
 
-Sur le téléphone, ouvre l'URL locale affichée par Vite.
+Le script conserve le `.env`, copie la mise à jour, installe/vérifie les dépendances, lance le build puis pousse sur GitHub si le dépôt local est présent.
 
----
+## Migration Supabase
 
-## Configuration Supabase — première installation
-
-Dans le SQL Editor de Supabase, exécute :
+Dans **Supabase > SQL Editor**, exécuter une seule fois :
 
 ```text
-supabase/migrations/001_init.sql
+supabase/migrations/005_ldj_v1_4.sql
 ```
 
-Dans **Authentication**, active Email / Password et crée les comptes vendeurs nécessaires.
+La migration **005 est cumulative** : si la v1.3 n'a pas été installée, ne pas lancer 004 avant.
 
-### Si la v0.1 avait déjà été installée
+Elle ajoute notamment :
+- QR permanent multi-clients ;
+- traçabilité produit des factures ;
+- tables `sales` / `sale_lines` pour les ventes rapides ;
+- RPC atomique `record_quick_sale` ;
+- journal d'audit associé.
 
-Exécute ensuite :
+## Envoi e-mail des factures
 
-```text
-supabase/migrations/002_upgrade_v1.sql
-```
+La fonction Edge reste `supabase/functions/send-invoice/index.ts`. Les secrets Supabase requis sont :
+- `RESEND_API_KEY`
+- `MAIL_FROM`
 
----
+Le domaine `lezarddujardin.fr` doit rester vérifié dans Resend.
 
-## Envoi automatique des factures
+## Catalogue
 
-La fonction Edge est dans :
+- `src/catalogue.json` : 389 produits embarqués.
+- `public/products/` : miniatures.
+- `catalogue_389.csv` : copie contrôlable.
 
-```text
-supabase/functions/send-invoice/index.ts
-```
+## Important
 
-Installation CLI et déploiement :
-
-```bash
-npm install -g supabase
-supabase login
-supabase link --project-ref VOTRE_PROJECT_REF
-supabase secrets set RESEND_API_KEY=re_xxxxxxxxx
-supabase secrets set MAIL_FROM="Lézard du Jardin <factures@votre-domaine.fr>"
-supabase functions deploy send-invoice
-```
-
-Le domaine d'envoi doit être validé chez Resend.
-
----
-
-## Déploiement GitHub Pages
-
-Un workflow est fourni :
-
-```text
-.github/workflows/deploy-pages.yml
-```
-
-Créer dans GitHub → **Settings → Secrets and variables → Actions** :
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Puis activer GitHub Pages avec **Source = GitHub Actions**.
-
-Le site doit être servi en HTTPS pour que l'accès caméra fonctionne correctement.
-
----
-
-## Utilisation sur une foire
-
-### Avant l'ouverture
-
-1. Ouvrir l'application une fois avec Internet.
-2. Choisir la foire dans l'onglet **Foires**.
-3. Vérifier les mentions légales et l'e-mail de copie dans **Réglages**.
-4. Scanner 2 ou 3 étiquettes QR pour vérifier caméra + prix.
-5. Faire une facture test puis vérifier l'e-mail et le PDF.
-
-### Pendant une vente
-
-1. **Scanner QR produit**.
-2. Re-scanner le même QR pour augmenter la quantité si nécessaire.
-3. Afficher le **QR client** pour qu'il saisisse ses coordonnées.
-4. Vérifier le panier, règlement, remise / livraison.
-5. Appuyer sur **Facturer et envoyer**.
-6. Le PDF est archivé et envoyé au client + copie entreprise.
-
-Si le réseau tombe, continuer à scanner les produits et préparer le brouillon. La finalisation attend le retour de la connexion pour préserver la numérotation.
-
----
-
-## Catalogue intégré
-
-Fichiers :
-
-- `src/catalogue.json` — catalogue embarqué dans l'application.
-- `public/products/` — miniatures produit.
-- `catalogue_389.csv` — copie lisible / contrôlable du catalogue intégré.
-
-Le QR produit contient seulement un identifiant stable du type :
-
-```text
-LDJ:P:1907
-```
-
-Le nom et le prix sont lus dans le catalogue local. Une évolution de tarif nécessite donc une mise à jour du catalogue, pas du principe de scan.
-
-## Deux images non intégrées
-
-Les références suivantes étaient présentes dans le catalogue PDF sans image exploitable lors de l'extraction :
-
-- `LDJ102879` — Bain à oiseau sur pied patiné bleu
-- `LDJ748521` — Banc fer forgé fonte 2 places - patine gris vieilli
-
-Elles restent parfaitement recherchables et scannables ; seule la vignette est remplacée par le placeholder LDJ.
-
----
-
-## Vérification obligatoire avant utilisation réelle
-
-Compléter dans **Réglages** : raison sociale, adresse, SIREN/SIRET, TVA intracommunautaire le cas échéant, téléphone, e-mail, e-mail de copie, préfixe de facture et mentions légales exactes.
-
-Faire ensuite une facture test complète avant la première foire.
-
-
-## QR client : adresse publique obligatoire (v1.1)
-
-Un QR scanné par un autre téléphone ne doit jamais pointer vers `127.0.0.1` ou `localhost`, car ces adresses désignent le téléphone du client lui-même.
-
-Dans `.env`, renseigner :
-
-```env
-VITE_PUBLIC_APP_URL=https://VOTRE_COMPTE.github.io/facturier-foires-lezard-du-jardin/
-```
-
-Pour un test temporaire avec deux téléphones connectés au **même Wi-Fi**, il est possible d'utiliser l'adresse réseau affichée par Vite, par exemple :
-
-```env
-VITE_PUBLIC_APP_URL=http://192.168.1.25:5173/
-```
-
-Puis redémarrer `npm run dev`. Pour une foire, utiliser l'URL HTTPS GitHub Pages afin que le QR fonctionne quel que soit le réseau du client.
+Cette application contient désormais une fonction de mémorisation des ventes et règlements. Avant de l'utiliser comme **logiciel ou système de caisse** au sens fiscal, vérifier les obligations françaises applicables à ton entreprise (inaltérabilité, sécurisation, conservation, archivage et justificatif de conformité).

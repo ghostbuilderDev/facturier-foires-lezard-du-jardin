@@ -1,0 +1,28 @@
+FACTURIER FOIRES LEZARD DU JARDIN - V1.3
+
+Cette version reprend toutes les améliorations v1.2 et ajoute :
+- QR permanent à imprimer : plusieurs clients peuvent le scanner en même temps.
+- Chaque scan crée une session séparée : aucun mélange de coordonnées.
+- Compteur Clients en attente mis à jour automatiquement.
+- File d'attente avec heure, nom, e-mail, téléphone et bouton Utiliser pour cette vente.
+- Verrouillage d'un client lorsqu'il est associé à une vente, utile avec plusieurs appareils vendeurs.
+- Nouvel onglet Suivi journée.
+- Nombre de factures, quantité d'articles, total HT, TVA, CA TTC et panier moyen.
+- Tableau des articles vendus avec quantité et CA TTC par référence.
+- Répartition des ventes par moyen de paiement.
+- Détail chronologique : heure, facture, produit, quantité, prix, total, règlement.
+- Export CSV de la journée.
+- Les nouvelles lignes de facture conservent SKU, ID produit, n° catalogue et catégorie.
+- Date de vente calculée en heure locale du téléphone.
+- Toutes les corrections v1.2 : identité légale, PU HT sur facture, QR masqué, pgcrypto, etc.
+
+IMPORTANT :
+Le suivi journée est un journal issu des factures finalisées. Il ne prétend pas être un logiciel de caisse certifié,
+ne gère pas de fond de caisse ni de clôture Z.
+
+APRES LA MISE A JOUR TERMUX :
+Ouvrir Supabase > SQL Editor, coller tout le fichier :
+supabase/migrations/004_ldj_v1_3.sql
+puis cliquer Run.
+
+Il n'est PAS nécessaire d'exécuter 003 avant : 004 est cumulative.
