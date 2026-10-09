@@ -1,0 +1,19 @@
+FACTURIER FOIRES LÉZARD DU JARDIN V1.5
+
+1. Télécharge le ZIP dans Android / Download.
+2. Colle la commande unique fournie avec le ZIP dans Termux.
+3. Attends que GitHub Pages termine le déploiement.
+4. Ouvre https://ghostbuilderdev.github.io/facturier-foires-lezard-du-jardin/reset-tests.html
+5. Clique sur « Copier le SQL complet ».
+6. Supabase > SQL Editor > New query > coller > Run.
+
+CE QUI CHANGE :
+- Logo officiel original sur toutes les nouvelles factures PDF.
+- Réinitialisation sécurisée des quatre factures de test (000001 à 000004 de 2026) ET des ventes rapides de test du même espace, jusqu'à 20.
+- Le SQL rejette toute autre situation au lieu d'effacer sans vérification.
+- Prochaine facture : LDJ-2026-000001.
+- Anciennes données des tests masquées/supprimées des tables applicatives. Les PDF physiques précédents du bucket Supabase restent privés et orphelins. Les nouvelles factures ont des noms de fichiers uniques.
+- Les 389 produits, les réglages, comptes, QR, Resend et le suivi de journée demeurent opérationnels.
+- Le contenu des tests supprimés ne peut pas être restauré sans sauvegarde. Ne lance pas la remise à zéro si l'une de ces factures ou ventes est réelle.
+
+IMPORTANT : sur Android, la CLI Supabase npm échoue (unsupported platform). La remise à zéro demande une seule exécution dans SQL Editor.

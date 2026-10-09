@@ -61,6 +61,15 @@ const bundledProducts = bundledCatalog.map(p=>({
   image:p.image || ''
 }))
 
+// Après l'installation de cette version de remise à zéro, ne pas réutiliser
+// un ancien panier de test sur le téléphone. Ne touche pas à la connexion.
+try {
+  if (localStorage.getItem('ldj_logo_reset_v15') !== 'done') {
+    localStorage.removeItem('ldj_invoice_draft')
+    localStorage.setItem('ldj_logo_reset_v15', 'done')
+  }
+} catch (_) {}
+
 const blankCustomer = () => ({customer_type:'individual',first_name:'',last_name:'',company_name:'',siren:'',vat_number:'',address:'',postal_code:'',city:'',country:'France',email:'',phone:'',delivery_same:true,delivery_address:'',delivery_postal_code:'',delivery_city:''})
 const savedPref = (k,def='') => localStorage.getItem('ldj_'+k) || def
 const blankDraft = () => ({
@@ -318,7 +327,7 @@ async function finalizeSale(){
     const {data:number,error:ferr}=await supabase.rpc('finalize_invoice',{p_invoice_id:inv.id});if(ferr)throw ferr
     finalized={id:inv.id,number}; const keep={event_id:state.draft.event_id,payment_method:state.draft.payment_method,delivery_mode:state.draft.delivery_mode}; state.draft={...blankDraft(),...keep}; saveDraft()
     btn.textContent='Génération du PDF…';const {data:full,error:rerr}=await supabase.from('invoices').select('*').eq('id',inv.id).single();if(rerr)throw rerr;const {data:lines}=await supabase.from('invoice_lines').select('*').eq('invoice_id',inv.id).order('position')
-    const blob=createInvoicePdf({invoice:full,company:state.company,lines:lines||[]});const year=new Date(full.issued_at).getFullYear(),path=`${state.company.id}/${year}/${full.number}.pdf`;const {error:uerr}=await supabase.storage.from('invoices').upload(path,blob,{contentType:'application/pdf',upsert:false});if(uerr)throw uerr;const {error:aerr}=await supabase.rpc('attach_invoice_pdf',{p_invoice_id:inv.id,p_path:path});if(aerr)throw aerr
+    const blob=await createInvoicePdf({invoice:full,company:state.company,lines:lines||[]});const year=new Date(full.issued_at).getFullYear(),path=`${state.company.id}/${year}/${full.number}-${full.id}.pdf`;const {error:uerr}=await supabase.storage.from('invoices').upload(path,blob,{contentType:'application/pdf',upsert:false});if(uerr)throw uerr;const {error:aerr}=await supabase.rpc('attach_invoice_pdf',{p_invoice_id:inv.id,p_path:path});if(aerr)throw aerr
     btn.textContent='Envoi par e-mail…';const {error:eerr}=await supabase.functions.invoke('send-invoice',{body:{invoice_id:inv.id}});const dl=URL.createObjectURL(blob);state.lastPdf={blob,number:full.number,url:dl}
     msg.innerHTML=`<div class="notice success"><strong>✓ ${escapeHtml(number)}</strong><br>PDF archivé${eerr?' — e-mail à relancer':' — envoyé au client + copie entreprise'}.<div class="actions result-actions"><a class="btn btn-secondary" href="${dl}" download="${escapeHtml(full.number)}.pdf">Télécharger PDF</a><button class="btn btn-secondary" id="share-pdf">Partager</button><button class="btn btn-primary" id="next-sale">Nouvelle vente</button></div>${eerr?`<div class="small">Erreur e-mail : ${escapeHtml(eerr.message)}</div>`:''}</div>`
     document.querySelector('#next-sale').onclick=()=>{state.saleMode='quick';renderQuickSale()};document.querySelector('#share-pdf').onclick=shareLastPdf
@@ -386,7 +395,7 @@ async function renderInvoices(){
 async function openInvoicePdf(id){const {data:inv}=await supabase.from('invoices').select('pdf_path').eq('id',id).single();if(!inv?.pdf_path)return;const {data,error}=await supabase.storage.from('invoices').createSignedUrl(inv.pdf_path,60);if(error)return alert(error.message);window.open(data.signedUrl,'_blank','noopener')}
 async function repairInvoicePdf(id,button){
   button.disabled=true;button.textContent='Réparation…'
-  try{const {data:inv,error}=await supabase.from('invoices').select('*').eq('id',id).single();if(error)throw error;const {data:lines,error:lerr}=await supabase.from('invoice_lines').select('*').eq('invoice_id',id).order('position');if(lerr)throw lerr;const blob=createInvoicePdf({invoice:inv,company:state.company,lines:lines||[]});const year=new Date(inv.issued_at).getFullYear(),path=`${state.company.id}/${year}/${inv.number}.pdf`;const {error:uerr}=await supabase.storage.from('invoices').upload(path,blob,{contentType:'application/pdf',upsert:false});if(uerr && !String(uerr.message||'').toLowerCase().includes('already'))throw uerr;const {error:aerr}=await supabase.rpc('attach_invoice_pdf',{p_invoice_id:id,p_path:path});if(aerr)throw aerr;const {error:eerr}=await supabase.functions.invoke('send-invoice',{body:{invoice_id:id}});alert(eerr?'PDF réparé. Envoi e-mail à relancer : '+eerr.message:'PDF réparé et facture envoyée.');renderInvoices()}catch(e){alert('Réparation impossible : '+(e.message||e));button.disabled=false;button.textContent='Réparer PDF'}
+  try{const {data:inv,error}=await supabase.from('invoices').select('*').eq('id',id).single();if(error)throw error;const {data:lines,error:lerr}=await supabase.from('invoice_lines').select('*').eq('invoice_id',id).order('position');if(lerr)throw lerr;const blob=await createInvoicePdf({invoice:inv,company:state.company,lines:lines||[]});const year=new Date(inv.issued_at).getFullYear(),path=`${state.company.id}/${year}/${inv.number}-${inv.id}.pdf`;const {error:uerr}=await supabase.storage.from('invoices').upload(path,blob,{contentType:'application/pdf',upsert:false});if(uerr && !String(uerr.message||'').toLowerCase().includes('already'))throw uerr;const {error:aerr}=await supabase.rpc('attach_invoice_pdf',{p_invoice_id:id,p_path:path});if(aerr)throw aerr;const {error:eerr}=await supabase.functions.invoke('send-invoice',{body:{invoice_id:id}});alert(eerr?'PDF réparé. Envoi e-mail à relancer : '+eerr.message:'PDF réparé et facture envoyée.');renderInvoices()}catch(e){alert('Réparation impossible : '+(e.message||e));button.disabled=false;button.textContent='Réparer PDF'}
 }
 
 function renderProducts(){

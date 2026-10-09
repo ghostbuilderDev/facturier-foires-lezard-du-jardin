@@ -3,19 +3,59 @@ import { jsPDF } from 'jspdf'
 const euro = n => `${Number(n || 0).toFixed(2).replace('.', ',')} €`
 const dateFr = value => value ? new Date(value).toLocaleDateString('fr-FR') : ''
 
-export function createInvoicePdf({ invoice, company, lines }) {
+// Logo original repris du site officiel Lézard du Jardin.
+// Le fichier doit rester dans public/logo-ldj.png.
+let logoPromise = null
+function readLogoAsDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+function loadLdJLogo() {
+  if (!logoPromise) {
+    logoPromise = fetch(new URL('./logo-ldj.png', window.location.href))
+      .then(response => {
+        if (!response.ok) throw new Error('Logo introuvable')
+        return response.blob()
+      })
+      .then(readLogoAsDataURL)
+      .catch(() => null)
+  }
+  return logoPromise
+}
+
+export async function createInvoicePdf({ invoice, company, lines }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const left = 16, right = 194
   let y = 17
   const addText = (txt, x, yy, opts={}) => doc.text(String(txt ?? ''), x, yy, opts)
 
-  doc.setFillColor(36, 75, 58); doc.roundedRect(15, 12, 58, 18, 4, 4, 'F')
-  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12)
-  addText(company.trade_name || company.name || 'Lézard du Jardin', 18, 23)
+  // Logo officiel : conserver les proportions de l'image, sans étirement.
+  // Si l'image ne charge pas, la facture reste utilisable avec l'ancien cartouche.
+  const originalLogo = await loadLdJLogo()
+  let logoAdded = false
+  if (originalLogo) {
+    try {
+      const img = doc.getImageProperties(originalLogo)
+      const scale = Math.min(92 / img.width, 18 / img.height)
+      doc.addImage(originalLogo, 'PNG', 15, 13, img.width * scale, img.height * scale)
+      logoAdded = true
+    } catch (error) {
+      console.warn('Logo Lézard du Jardin non lisible, retour au cartouche texte', error)
+    }
+  }
+  if (!logoAdded) {
+    doc.setFillColor(36, 75, 58); doc.roundedRect(15, 12, 58, 18, 4, 4, 'F')
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
+    addText(company.trade_name || company.name || 'Lézard du Jardin', 18, 23)
+  }
   doc.setTextColor(32,49,40)
   doc.setFontSize(23); doc.setFont('helvetica','bold'); addText(invoice.kind === 'credit_note' ? 'AVOIR' : 'FACTURE', right, 21, {align:'right'})
   doc.setFontSize(10); doc.setFont('helvetica','normal'); addText(invoice.number, right, 28, {align:'right'})
-  y = 40
+  y = 43
 
   doc.setFont('helvetica','bold'); doc.setFontSize(10); addText('ÉMETTEUR', left, y)
   doc.setFont('helvetica','normal'); y += 6

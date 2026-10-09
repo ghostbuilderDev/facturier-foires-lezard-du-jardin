@@ -1,3 +1,51 @@
+-- Lézard du Jardin : mise en place v1.4 + remise à zéro des essais (v1.5)
+-- Exécuter UNE SEULE fois dans Supabase > SQL Editor.
+-- ATTENTION : supprime les 4 factures de test et jusqu'à 20 ventes rapides de test
+-- de LA MÊME entreprise, ainsi que les formulaires QR en attente de cet espace.
+-- Ne supprime pas les 389 produits, les événements, les utilisateurs ni les secrets.
+-- Si des factures réelles existent, ce script doit REFUSER de s'exécuter.
+
+begin;
+
+do $$
+declare
+  matching_companies int;
+  confirmed_final int;
+  target_company uuid;
+  quick_count int;
+begin
+  select count(*) into matching_companies
+  from (
+    select company_id from public.invoices
+    group by company_id
+    having count(*) filter(where status='final') = 4
+       and count(*) filter(where status='final' and number in (
+           'LDJ-2026-000001','LDJ-2026-000002',
+           'LDJ-2026-000003','LDJ-2026-000004')) = 4
+       and count(*) filter(where number is not null) = 4
+  ) target;
+  if matching_companies <> 1 then
+    raise exception 'SECURITE : 4 factures test 000001 a 000004 introuvables dans un seul espace. Aucun effacement.';
+  end if;
+  select company_id into target_company
+  from public.invoices group by company_id
+  having count(*) filter(where status='final') = 4
+     and count(*) filter(where status='final' and number in (
+       'LDJ-2026-000001','LDJ-2026-000002',
+       'LDJ-2026-000003','LDJ-2026-000004')) = 4
+     and count(*) filter(where number is not null) = 4;
+  -- Si l'application avait deja des ventes rapides reelles, ne pas effacer aveuglement.
+  if to_regclass('public.sales') is not null then
+    execute 'select count(*) from public.sales where company_id=$1'
+      into quick_count using target_company;
+    if quick_count > 20 then
+      raise exception 'SECURITE : plus de 20 ventes rapides. Aucun effacement. Contacter assistance.';
+    end if;
+  end if;
+  raise notice '4 factures tests reconnues; espace %, ventes rapides a effacer: %', target_company, coalesce(quick_count,0);
+end $$;
+
+-- Rejoue les changements v1.4 de facon idempotente si la premiere migration avait echoue.
 -- Facturier LDJ v1.3 - QR permanent + file clients + suivi des ventes
 -- Migration cumulative : peut être exécutée même si 003 n'a jamais été lancée.
 
@@ -257,3 +305,73 @@ begin
 end$$;
 
 grant execute on function public.record_quick_sale(uuid,text,text,date,jsonb) to authenticated;
+
+-- Remise à zéro : verrouillage de la seule entreprise avec les quatre tests.
+do $$
+declare
+  company_to_reset uuid;
+  pdf_count int;
+  sale_count int;
+  deleted_invoice_count int;
+  invoice_uuid uuid;
+begin
+  select company_id into company_to_reset
+  from public.invoices
+  group by company_id
+  having count(*) filter(where status='final') = 4
+     and count(*) filter(where status='final' and number in (
+       'LDJ-2026-000001','LDJ-2026-000002',
+       'LDJ-2026-000003','LDJ-2026-000004')) = 4
+     and count(*) filter(where number is not null) = 4
+  limit 1;
+  if company_to_reset is null then
+    raise exception 'SECURITE : factures tests non reconnues, aucune suppression.';
+  end if;
+
+  -- Les documents test ne restent pas dans le journal principal.
+  -- Les fichiers du bucket privé Storage ne sont pas supprimés par SQL
+  -- pour ne jamais casser le système de fichiers Supabase.
+  -- Les nouveaux PDF portent aussi leur UUID : pas de collision avec les anciens.
+  delete from public.audit_events
+   where company_id=company_to_reset and entity_type in ('invoice','sale');
+
+  -- Les lignes de facture sont en cascade depuis invoices.
+  delete from public.invoices
+   where company_id=company_to_reset;
+  get diagnostics deleted_invoice_count = row_count;
+
+  -- Les ventes rapides utilisent des lignes avec ON DELETE RESTRICT.
+  delete from public.sale_lines sl
+   using public.sales s
+   where sl.sale_id=s.id and s.company_id=company_to_reset;
+  delete from public.sales
+   where company_id=company_to_reset;
+  get diagnostics sale_count = row_count;
+
+  -- Nettoyage des anciennes demandes client de test (jetons QR temporaires).
+  delete from public.intake_sessions
+   where company_id=company_to_reset;
+
+  -- Numéro de 2026 : la prochaine facture sera LDJ-2026-000001.
+  delete from public.invoice_sequences
+   where company_id=company_to_reset
+     and year=2026 and doc_type in ('invoice','credit_note');
+
+  -- Conserver les paramètres de la société et le QR permanent de l'affiche.
+  update public.companies set invoice_prefix='LDJ'
+   where id=company_to_reset;
+
+  raise notice 'Reinitialisation terminee : % factures, % ventes rapides effacees. Catalogue preserve.',
+    deleted_invoice_count, sale_count;
+end $$;
+
+commit;
+
+-- Verification (retourne zero partout pour l'entreprise nettoyee)
+select c.name,
+  (select count(*) from public.invoices i where i.company_id=c.id) as factures_restantes,
+  (select count(*) from public.sales s where s.company_id=c.id) as ventes_rapides_restantes,
+  coalesce((select last_value from public.invoice_sequences s
+    where s.company_id=c.id and s.year=2026 and s.doc_type='invoice'),0) as compteur_facture_2026
+from public.companies c
+where c.public_intake_code='c9c1626a-06be-4e17-9c84-4ca10753f10a'::uuid;

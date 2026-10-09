@@ -1,4 +1,15 @@
-# Facturier Foires — Lézard du Jardin v1.4
+## Mise à jour v1.5 - logo officiel + remise à zéro des essais
+
+Le ZIP v1.5 remplace les anciennes versions. Exécuter `update_termux.sh` depuis le dossier extrait. Puis ouvrir `reset-tests.html` sur la page GitHub Pages après déploiement, copier et exécuter le SQL.
+
+Ne lancer le SQL que si **les quatre factures 000001 à 000004 sont réellement des essais**. Le script stoppe si les données attendues ne correspondent pas. Il nettoie aussi les ventes rapides de test de l'espace sélectionné (max 20), mais conserve les 389 produits, le QR permanent, le compte, les événements et les réglages.
+
+Le logo horizontal original est livré dans `public/logo-ldj.png`.
+Les nouveaux PDF sont enregistrés avec un suffixe UUID pour éviter des collisions avec de vieux PDF de tests encore physiquement présents dans le Storage privé Supabase.
+
+---
+
+# Facturier Foires — Lézard du Jardin v1.5
 
 Application PWA terrain pour les foires et salons, avec catalogue **389 produits** et QR `LDJ:P:<id_product>`.
 
