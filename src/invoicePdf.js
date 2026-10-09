@@ -68,7 +68,7 @@ export async function createInvoicePdf({ invoice, company, lines }) {
     company.siret ? `SIRET : ${company.siret}` : '',
     company.siren ? `RCS Saintes : ${company.siren}` : '',
     company.vat_number ? `TVA intracom. : ${company.vat_number}` : '',
-    company.email || '',
+    company.email || 'sasulezarddujardin@gmail.com',
     company.phone || ''
   ].filter(Boolean)
   seller.forEach(t => { addText(t,left,y); y += 4.7 })

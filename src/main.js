@@ -13,10 +13,10 @@ const LDJ_COMPANY_DEFAULTS = {
   address:'12 rue de la Brande',
   postal_code:'17240', city:'Champagnolles', country:'France',
   siren:'902726165', siret:'90272616500019', vat_number:'FR05902726165',
-  email:'contact@lezarddujardin.fr', invoice_email:'sasulezarddujardin@gmail.com',
+  email:'sasulezarddujardin@gmail.com', invoice_email:'sasulezarddujardin@gmail.com',
   phone:'06 50 81 37 14', invoice_prefix:'LDJ', default_vat_rate:20,
   payment_terms:'Paiement comptant à la vente. Aucun escompte pour paiement anticipé.',
-  legal_footer:'LEZARD DU JARDIN — SASU — SIREN 902 726 165 — SIRET 902 726 165 00019 — RCS Saintes 902 726 165 — TVA FR05 902 726 165 — Siège social : 12 rue de la Brande, 17240 Champagnolles, France — contact@lezarddujardin.fr — 06 50 81 37 14'
+  legal_footer:'LEZARD DU JARDIN — SASU — SIREN 902 726 165 — SIRET 902 726 165 00019 — RCS Saintes 902 726 165 — TVA FR05 902 726 165 — Siège social : 12 rue de la Brande, 17240 Champagnolles, France — sasulezarddujardin@gmail.com — 06 50 81 37 14'
 }
 
 function isLoopbackHost(hostname){
@@ -106,8 +106,20 @@ async function applyLdJCompanyDefaults(){
     const cur=state.company[key]
     if(cur===null || cur===undefined || String(cur).trim()==='') patch[key]=value
   }
+  // Correctif v1.5.1 : remplace uniquement l'ancienne adresse erronée,
+  // sans toucher à une éventuelle autre adresse définie volontairement.
+  const isLdJ = /l[eé]zard du jardin/i.test(`${state.company.trade_name||''} ${state.company.name||''}`)
+  if(isLdJ){
+    const oldMail='contact@lezarddujardin.fr'
+    const correctMail='sasulezarddujardin@gmail.com'
+    if(String(state.company.email||'').trim().toLowerCase()===oldMail) patch.email=correctMail
+    if(!String(state.company.invoice_email||'').trim()) patch.invoice_email=correctMail
+    if(String(state.company.legal_footer||'').includes(oldMail))
+      patch.legal_footer=String(state.company.legal_footer).replaceAll(oldMail,correctMail)
+  }
   if(!Object.keys(patch).length)return
   const {data,error}=await supabase.from('companies').update(patch).eq('id',state.company.id).select().single()
+  if(error) console.warn('Mise à jour adresse facturation :',error.message)
   if(!error && data) state.company=data
 }
 
